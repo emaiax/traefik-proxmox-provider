@@ -36,7 +36,9 @@ func TestProviderNew(t *testing.T) {
 				ApiValidateSSL: "true",
 				ApiLogging:     "info",
 			},
-			wantErr: true, // We expect an error because the domain doesn't exist
+			// The endpoint doesn't exist, but an unreachable endpoint is no
+			// longer fatal at startup: it is retried on every poll.
+			wantErr: false,
 		},
 		{
 			name:    "Nil config",
@@ -410,9 +412,11 @@ func TestGenerateConfiguration_MultipleRouters(t *testing.T) {
 			"traefik.http.services.shop.loadbalancer.server.url": "http://23.45.67.90:8080",
 		},
 	}
-	servicesMap := map[string][]internal.Service{"node1": {service}}
+	clusterMaps := []clusterServiceMap{
+		{clusterName: "default", services: map[string][]internal.Service{"node1": {service}}},
+	}
 
-	config := generateConfiguration(servicesMap)
+	config := generateConfiguration(clusterMaps, false)
 
 	if len(config.HTTP.Routers) != 2 {
 		t.Fatalf("Expected 2 routers, got %d: %v", len(config.HTTP.Routers), config.HTTP.Routers)
